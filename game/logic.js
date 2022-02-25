@@ -9,20 +9,26 @@ const POPANIMATIONFRAME = 30;
 const FRAMERATE = 60;
 const STALL_LIMIT = 5;
 const SOFTDROPSPEED = 2;
+const GARBAGE_COLOR = 0x8a8a8a;
 
 class Unit {
+    garbage = false;
     frame = 0;
 
-    constructor (x, y, c) {
+    constructor (x, y, c, g = false) {
         this.x = x;
         this.y = y;
         this.gy = y* CELLSIZE;
-        this.c = c;
+        this.c = g? -1 : c;
         this.graphics = new PIXI.Graphics();
+        this.garbage = g;
     }
     refresh = () => {
         this.graphics.clear();
-        this.graphics.beginFill(COLORS[this.c]);
+        if (!this.garbage)         
+            this.graphics.beginFill(COLORS[this.c]);
+        else        
+            this.graphics.beginFill(GARBAGE_COLOR);
         this.graphics.drawCircle((this.x +0.5) *CELLSIZE,this.gy + CELLSIZE/2, CELLSIZE/2);
     }
 }
@@ -57,6 +63,11 @@ class Logic {
     static gameOver = false;
     static combo = 0;
     
+    static addUnit = (unit) => {
+        units.push(unit);
+        board[unit.y][unit.x] = unit;
+        GameScreen.addToBoard(unit.graphics);
+    }
     static start = () => {
         this.gameOver = false;
         app.ticker.add(this.loop);
@@ -227,10 +238,16 @@ class Logic {
     static checkPop = () => {
         let visited = [];
         let out = false;
-        for (let i=0; i<units.length; i++) {
-            if (visited.includes(units[i])) continue;
 
+        // For all units
+        for (let i=0; i<units.length; i++) {
+            if (units[i].garbage) continue; 
+            if (visited.includes(units[i])) continue;
+            
+            // only unprocessed & non-garbage units
+            // bfs for group & neighboring garbage
             let group = [];
+            let affectedGarbage = [];
             let next = [units[i]];
             while (next.length) {
                 let curr = next.shift();
@@ -240,17 +257,28 @@ class Logic {
                     if (curr.y+dy[d] < 0 || curr.y+dy[d] == 12 || curr.x+dx[d] < 0 || curr.x+dx[d] == 6) continue;
         
                     let neighbor = board[curr.y + dy[d]][curr.x + dx[d]];
-                    if (neighbor != null) if (!visited.includes(neighbor) && neighbor.c == curr.c) {
-                        visited.push(neighbor);
-                        next.push(neighbor);
+                    if (neighbor != null) {
+                        if (!visited.includes(neighbor) && neighbor.c == curr.c) {
+                            visited.push(neighbor);
+                            next.push(neighbor);
+                        }
+                        if (neighbor.garbage) {
+                            affectedGarbage.push(neighbor);
+                        }
                     }
                 }
             }
             if (group.length > 4) {
                 out = true;
+                // pop them logically, start animation
                 for (let k=0; k<group.length; k++) {
                     board[group[k].y][group[k].x] = null;
                     group[k].frame = POPANIMATIONFRAME;
+                }
+                // pop garbage
+                for (let k=0; k<affectedGarbage.length; k++) {
+                    board[affectedGarbage[k].y][affectedGarbage[k].x] = null;
+                    affectedGarbage[k].frame = POPANIMATIONFRAME;
                 }
             }
         }
