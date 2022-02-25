@@ -42,9 +42,7 @@ for (let y=0; y<12; y++) {
     for (let x=0; x<6; x++) 
         board[y].push(null);
 }
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+
 const max = (a, b) => {
     if (a > b)
         return a;

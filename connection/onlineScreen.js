@@ -1,21 +1,21 @@
-class AboutScreen {
-    
+class OnlineScreen {
+
     static container = new PIXI.Container();
     static style = new PIXI.TextStyle({
-        fontSize: 14,
-        fontFamily: "\"Lucida Console\", Monaco, monospace",
-        wordWrap: true,
-        wordWrapWidth: 400,
+        dropShadow: true,
+        dropShadowColor: "#bfbaba",
+        fontFamily: "\"Lucida Console\", Monaco, monospace"
     });
 
-    static FLEX = 50;
+    // A constant on how much each button should slide.
+    static FLEX = 140;
+
 
     static put = function () {
         app.ticker.remove(this.f_slideout);
 
-
         this.container.original_x = 0;
-        this.Title = new PIXI.Text("About:", {
+        this.Title = new PIXI.Text("Online Mode", {
             font_size: 28, 
         })
         {
@@ -23,15 +23,21 @@ class AboutScreen {
             this.Title.x = 100;
             this.Title.y = 60;
         }
-        this.text = new PIXI.Text("Just a web version Puy*Puy*, hopefully I finish before I loose interest.", this.style);
-        {
-            this.container.addChild(this.text);
-            this.text.x = 50;
-            this.text.y = 160;
-        }
+
+        makeButton(-this.FLEX, 300, 400, 100, 0xeeeeee, "JOIN MATCH", this.style, this.FLEX, this.container, ()=>{     
+            Log("room join requested");           
+            this.clear();
+        });
+        
+        makeButton(-this.FLEX, 400, 400, 100, 0x24b58c, "CREATE ROOM", this.style, this.FLEX, this.container, ()=>{     
+            Log("room creation requested");
+            this.clear();
+        });
+        
 
         makeButton(-50, 40, 100, 60, 0x998888, "BACK", BACK_BUTTON_STYLE, BACK_BUTTON_FLEX, this.container, () => {
             this.clear();
+            ConnectionManager.stop();
             TitleScreen.put();
         });
 

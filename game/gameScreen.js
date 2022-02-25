@@ -22,57 +22,6 @@ class GameScreen {
 
     static FLEX = 50;
 
-    static makeButton = (x,y,width,height,color,str,h) => {
-        let button = new PIXI.Container();
-        button.x = x;
-        button.y = y;
-        button.original_x = button.x;
-        this.container.addChild(button);
-
-        let rect = new PIXI.Graphics();
-        rect.beginFill(color);    
-        rect.drawRect(0,0,width,height);
-        rect.zIndex = 1;
-
-        let text = new PIXI.Text(str, this.style);
-        text.anchor.set(1, 0.5);
-        text.x = width * 0.9;
-        text.y = (height)/2;
-        text.zIndex = 1;
-
-        button.addChild(rect);
-        button.addChild(text);
-
-        button.interactive = true;
-        button.buttonMode = true;
-
-        var fover = () => {
-            button.x += ((button.original_x+ this.FLEX) - button.x) * 0.1;
-            if (Math.abs(button.x - (button.original_x + this.FLEX)) < 1) {
-                button.x = button.original_x+ this.FLEX;
-                app.ticker.remove(fover);
-            }  
-        }
-        var fout = () => {
-            button.x += (button.original_x - button.x) * 0.1;
-            if (Math.abs(button.original_x - button.x) < 1) {
-                button.x = button.original_x;
-                app.ticker.remove(fout);
-            }
-        }
-        button.on('click', h);
-        button.on('pointerover', ()=>{
-            app.ticker.remove(fout);
-            app.ticker.add(fover);
-        });
-
-        button.on('pointerout', ()=>{
-            app.ticker.remove(fover);
-            app.ticker.add(fout);
-        });
-
-        return button;
-    }
     static put = function () {
         app.ticker.remove(this.f_slideout);
 
@@ -80,7 +29,7 @@ class GameScreen {
         this.container.original_x = 0;
 
         // back button
-        this.makeButton(-50, 40, 100, 60, 0x998888, "BACK", () => {
+        makeButton(-50, 40, 100, 60, 0x998888, "BACK", BACK_BUTTON_STYLE, BACK_BUTTON_FLEX, this.container, () => {
             this.clear();
             TitleScreen.put();
         });
