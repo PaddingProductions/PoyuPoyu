@@ -1,0 +1,23 @@
+TODOS:
+
+
+NOTES:
+- Though the point thing is there, there isn't actually a text object dedicated to displaying 
+  the score.
+- Same note applies to the Next box
+
+- GameScreen.boarder is for static graphics, things that do not refresh. For things that do, 
+  place in GameScreen.board
+
+
+
+STRUCTURE:
+
+                                Graphics -(writes)-> Screen
+                                  Logic 
+                                   | reads
+                                   \/
+Time -(calls)-> Logic -(writes)-> Data 
+                  | reads
+                  \/
+                Input

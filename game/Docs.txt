@@ -1,0 +1,248 @@
+Constants:
+    dx = [0,1,0,-1]; // CW, 0 = up, 1 = right, 2 = down, 3 = right;
+    dy = [-1,0,1,0];
+
+    dropAt - The amount of frames until the node advances one block down.
+    TUMBLERATE - the amount of frames it takes for a unit to tumble down during animation.
+    POPANIMATIONFRAME - the amount of frames it takes for a unit to pop.
+    FRAMERATE - frame rate during animations.
+
+Methods:
+    sleep (ms: Int):
+        A sleep function, must be called with "async". Implemented with a promise-timeout.
+    max (a: Int, b: Int):
+        If you don't know go home.
+    blockFor (func): async
+        it will block app.ticker from calling the current function until 'func' is over.
+
+
+Classes:
+    Logic:
+    - Supposedly a static class that handles all of the 'logic' behind the game. Handles animations as well. 
+
+    Unit:
+    - A class representing a single node in the game. Holds the logical data (for game logic), graphical data (for animations),
+      and the PIXI graphical object
+
+    methods:
+    -refresh (): 
+        Updates the location of the graphic based ONLY on positon. 
+        -- NOTE -- Do not call during aniamtions as it overrides whatever was on the graphic before
+
+
+
+
+
+
+
+
+
+    static start = () => {
+        this.gameOver = false;
+        app.ticker.add(this.loop);
+        this.newPair();
+    }
+    static stop = () => {
+        for (let y=0;y<12;y++) 
+            for (let x=0;x<6; x++) 
+                board[y][x] = null;
+        units = [];
+        app.ticker.remove(this.loop);
+    }
+
+    static loop = async () => {
+        //input 
+        {
+            if (g_input["ArrowLeft"] == true) {
+                pair[0].x --;
+                pair[1].x --;
+                if (this.overlap()) {
+                    pair[0].x ++;
+                    pair[1].x ++;
+                }
+            }
+            if (g_input["ArrowRight"] == true) {
+                pair[0].x ++;
+                pair[1].x ++;
+                if (this.overlap()) {
+                    pair[0].x --;
+                    pair[1].x --;
+                }
+            }
+            if (g_input["x"]) {
+                let nr = (rotation + 1) % 4;
+                let diff =  (pair[1].gy % CELLSIZE);
+
+                pair[1].x = pair[0].x + dx[nr];
+                pair[1].y = pair[0].y + dy[nr];
+                pair[1].gy = (pair[1].y * CELLSIZE) + diff;
+
+                if (this.overlap()) {
+                    console.log("cw overlap, rejecting");
+                    pair[1].x = pair[0].x + dx[rotation];
+                    pair[1].y = pair[0].y + dy[rotation];
+                    pair[1].gy = pair[1].y * CELLSIZE + diff;
+                } else {
+                    if (this.contact()) {
+                        console.log("cw contact, removing diff");
+                        pair[0].gy = pair[0].y * CELLSIZE;
+                        pair[1].gy = pair[1].y * CELLSIZE;
+                    }
+                    console.log("cw pass");
+                    rotation = nr;
+                }
+            }
+            if (g_input["z"]) {
+                let nr = rotation - 1;
+                if (nr == -1) nr = 3;
+                let diff =  (pair[1].gy % CELLSIZE);
+
+                pair[1].x = pair[0].x + dx[nr];
+                pair[1].y = pair[0].y + dy[nr];
+                pair[1].gy = (pair[1].y * CELLSIZE) + diff;
+
+                if (this.overlap()) {
+                    pair[1].x = pair[0].x + dx[rotation];
+                    pair[1].y = pair[0].y + dy[rotation];
+                    pair[1].gy = pair[1].y * CELLSIZE + diff;
+                } else {
+                    if (this.contact()) {
+                        pair[0].gy = pair[0].y * CELLSIZE;
+                        pair[1].gy = pair[1].y * CELLSIZE;
+                    }
+                    rotation = nr;
+                }
+            }
+        }
+        clearInput();
+
+
+        //gravity
+        if (!this.contact()) {
+            pair[0].gy += CELLSIZE / dropAt;
+            pair[1].gy += CELLSIZE / dropAt;
+        }
+
+        dropCounter++;
+        if (dropCounter >= dropAt) {
+            dropCounter = 0;
+            pair[0].y ++;
+            pair[1].y ++;
+        }
+
+        // if drop overlapping with the floor 
+        // waiting until it overlaps with the floor makes it have a lock-delay effect.
+        if (this.overlap()) {
+            pair[0].y --; pair[1].y --; // remove overlap
+            pair[0].gy = pair[0].y *CELLSIZE; // align
+            pair[1].gy = pair[1].y *CELLSIZE;
+
+            board[pair[0].y][pair[0].x] = pair[0];
+            board[pair[1].y][pair[1].x] = pair[1];
+        
+            if (this.gravity()) {
+                // await drop animation
+                blockFor(this.dropAnimation);
+            }
+            while (this.checkPop()) {
+                // await pop animation
+                // if pull down
+                    // await drop animation
+            }
+            this.newPair();
+            if (this.gameOver) {
+                this.stop();
+            }
+        }
+        // refresh graphics
+        GameScreen.refresh();    
+    }
+    static gravity = () => {
+        let changed = false;
+        for (let i=0; i<units.length; i++) {
+            let x = units[i].x;
+            let y = units[i].y+1;
+            
+            while (y < 12) {
+                if (board[y][x] != null) 
+                    break;
+                y++
+            }
+
+            if (y-1 != units[i].y)
+                changed = true;
+
+            board[units[i].y][units[i].x] = null;
+            units[i].y = y-1;
+            board[units[i].y][units[i].x] = units[i];
+        }
+        return changed;
+    }
+    static dropAnimation = async () => {
+        let over = true;
+        for (let i=0; i<units.length; i++) {
+            if (units[i].gy != units[i].y * CELLSIZE) {
+                units[i].gy += CELLSIZE/TUMBLERATE;
+                over = false;
+            }
+        }
+        if (over)
+            return;
+        GameScreen.refresh();
+        await sleep(Math.floor(1000/FRAMERATE));
+        await this.dropAnimation();
+    }
+    static popAnimation = async () => {
+        let over = true;
+
+        // flashing animation
+
+        for (let i=0; i<units.length; i++) {
+            if (units[i].frame != 0) {
+                if (units[i].frame%2 == 1) 
+                    units[i].graphics.clear();
+                else 
+                    units[i].refresh();
+                units[i].frame --;
+            }
+        }
+        if (over)
+            return;
+
+        await sleep(Math.floor(1000/FRAMERATE));
+        await this.popAnimation();
+    }
+    static contact = () => {
+        //if floor
+        if (pair[0].y >= 11 || pair[1].y >= 11) 
+            return true; 
+        //if the one below you (y+1) is occupied
+        if (board[pair[0].y +1][pair[0].x] != null) 
+            return true;
+        if (board[pair[1].y +1][pair[1].x] != null) 
+            return true;
+        return false;
+    }
+    static overlap = () => {
+        //if floor
+        if (pair[0].x < 0 || pair[0].x >= 6 || pair[0].y < 0 || pair[0].y >= 12) return true;
+        if (pair[1].x < 0 || pair[1].x >= 6 || pair[1].y < 0 || pair[1].y >= 12) return true;  
+        //if the one below you (y+1) is occupied
+        if (board[pair[0].y][pair[0].x] != null) 
+            return true;
+        if (board[pair[1].y][pair[1].x] != null) 
+            return true;
+        return false;
+    }
+
+    static newPair = () => {
+        if (board[0][3] != null || board[1][3] != null) {
+            this.gameOver = true;
+            return;
+        }
+        pair[0] = new Unit(3,0, Math.floor(Math.random() * 4));
+        pair[1] = new Unit(3,1, Math.floor(Math.random() * 4));
+        units.push(pair[0], pair[1]);
+        GameScreen.addToBoard(pair[0].graphics);
+        GameScreen.addToBoard(pair[1].graphics);
+    }
